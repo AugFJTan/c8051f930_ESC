@@ -39,6 +39,7 @@ char xdata buffer [33];
 //-----------------------------------------------------------------------------
 // Function PROTOTYPES
 //-----------------------------------------------------------------------------
+void pwm_control(void);
 void SYSCLK_Init (void);
 void PORT_Init (void);
 void SYSCLK_Init_24p5MHz (void);
@@ -54,8 +55,9 @@ void pwm_11bit(void);
 void pwm_16bit(void);
 void PORT_Check_Init (void);
 
-INTERRUPT_PROTO (PCA0_ISR, INTERRUPT_PCA0);
 
+INTERRUPT_PROTO (PCA0_ISR, INTERRUPT_PCA0);
+ 
  
 //-----------------------------------------------------------------------------
 // MAIN Routine
@@ -75,7 +77,7 @@ void main (void)
 
     SPI_Init();
 //    PCA0_Init ();                       // Initialize PCA0 
-//    PCA0_Init_PWM_16();
+    PCA0_Init_PWM_16();
  //    PCA0_Init_PWM_11 ();
    EA = 1;  // Enable global interrupts
 
@@ -93,14 +95,17 @@ void main (void)
    while (1)
    {    i++;
 
- //  pwm_8bit();
+ // pwm_8bit();
  //	pwm_16bit();
- //   pwm_11bit();
+ // pwm_11bit();
+	pwm_control();
  
 #ifdef LCD    
 	
-//	sprintf (buffer,"CV = %x ",CEX0_Compare_Value);
-	sprintf (buffer,"i = %d ",i);
+ 	sprintf (buffer,"CV = %x ",CEX0_Compare_Value);
+    LCD_ShowString(0,ROW1,buffer );
+
+	/*sprintf (buffer,"i = %d ",i);
     LCD_ShowString(0,ROW2,buffer );
 
 
@@ -108,7 +113,7 @@ void main (void)
 	if (P0 & 0x20)
     	LCD_ShowString(0,ROW3, "P0.5 is on ");
 	else
-		LCD_ShowString(0,ROW3, "P0.5 is off");
+		LCD_ShowString(0,ROW3, "P0.5 is off");*/
 
 /*
 	j= j+PCA0CPH0<<8;
@@ -122,7 +127,21 @@ void main (void)
    }
 }
 
+void pwm_control(void)
+{
+	if (SW1 == 0) CEX0_Compare_Value -= 100;      // Increase duty cycle
 
+	if (SW2 == 0) CEX0_Compare_Value += 100;      // Decrease duty cycle
+
+	if (CEX0_Compare_Value == 0x0ffff)
+	{
+		PCA0CPM0 &= ~0x40;         // Clear ECOM0
+	}
+	else
+	{
+		PCA0CPM0 |= 0x40;          // Set ECOM0 if it is '0'
+	}
+}
 
 void pwm_11bit(void)
 {
@@ -286,10 +305,19 @@ void SYSCLK_Init (void)
 // P1.1   miso
 // P1.2   mosi
 // P1.3   cs                         
-// P1.4   dc																																																																																																																																																																																																																																																													
+// P1.4   dc
 // P1.5   backlight
 // P1.6   reset
+// P1.7   input switch 1
 
+
+
+// P0.0
+// P0.1
+// P0.2
+// P0.3
+// P0.4  Rcx Throttle input
+// P0.5  input switch 2
 
 // P0 -  
 // P2 -  
@@ -297,6 +325,7 @@ void SYSCLK_Init (void)
 //      76543210
 
 // P2.0  - digital  push-pull     GREEN LED
+
 
   
 //-----------------------------------------------------------------------------
@@ -309,9 +338,12 @@ void SYSCLK_Init (void)
 //-----------------------------------------------------------------------------
 void PORT_Init (void)
 {
+    P0MDOUT   = 0x11;
+
     P1MDOUT   |= 0x7D;                  // SPI1 LCD
  	P2MDOUT   |= 0x01;                  // LED Port	
  
+    // P0SKIP    = 0x0f;
 
     EA        = 0;                     // Disable interrupts before SFR paging
 
@@ -322,7 +354,7 @@ void PORT_Init (void)
 	
    	SFRPAGE   = LEGACY_PAGE;
 
-    XBR1      = 0x40;
+    XBR1      = 0x41;
     XBR2      = 0x40;
 
   
@@ -330,7 +362,6 @@ void PORT_Init (void)
  
  
     LCD_BCK_LIGHT =1;
- 
 }
 
 
@@ -421,6 +452,9 @@ void PCA0_Init (void)
  
 }
 
+
+
+
 //-----------------------------------------------------------------------------
 // PCA0_Init
 //-----------------------------------------------------------------------------
@@ -494,8 +528,8 @@ void PCA0_Init_PWM_16 (void)
                                        // enable Module 0 Match and Interrupt
                                        // Flags
 
-   // Configure initial PWM duty cycle = 50%
-   CEX0_Compare_Value = 65536 - (65536 * 0.5);
+   // Value at PWM idle
+   CEX0_Compare_Value = 0xffff;
 
    PCA0CPL0 = (CEX0_Compare_Value & 0x00FF);
    PCA0CPH0 = (CEX0_Compare_Value & 0xFF00)>>8;
@@ -547,8 +581,14 @@ void PCA0_Init_PWM_11 (void)
 // the global variable "CEX0_Compare_Value".
 //
 //-----------------------------------------------------------------------------
-											INTERRUPT(PCA0_ISR, INTERRUPT_PCA0)
+INTERRUPT(PCA0_ISR, INTERRUPT_PCA0)
 {
+
+
+
+   static unsigned int current_capture_value, previous_capture_value;
+   static unsigned int capture_period;
+
 
 if (CCF0 ==1)             // PCA0 counter matches value, EXO is set to 1 
 {
@@ -564,13 +604,24 @@ if (CCF0 ==1)             // PCA0 counter matches value, EXO is set to 1
 
 }
 
-    
-    CR = 1;     // Start PCA counter
 
+
+   if (CCF1)                           // If Module 0 caused the interrupt
+   {
+      CCF1 = 0;                        // Clear module 0 interrupt flag.
+
+      // Store most recent capture value
+      current_capture_value = PCA0CP1;
+
+      // Calculate capture period from last two values.
+      capture_period = current_capture_value - previous_capture_value;
+
+      // Update previous capture value with most recent info.
+      previous_capture_value = current_capture_value;
+
+   }
+ 
 }
-
-
-
 
 //-----------------------------------------------------------------------------
 // End Of File

@@ -75,7 +75,16 @@
 // P1.4   dc
 // P1.5   backlight
 // P1.6   reset
+// P1.7   input switch 1
 
+
+
+// P0.0
+// P0.1
+// P0.2
+// P0.3
+// P0.4  Rcx Throttle input
+// P0.5  input switch 2
 
 // P0 -  
 // P2 -  
@@ -84,12 +93,11 @@
 
 // P2.0  - digital  push-pull     GREEN LED
 
-
  
 SBIT(GREEN_LED,     SFR_P2,0);
 SBIT(LCD_BCK_LIGHT, SFR_P1,5);  
-SBIT(P20,           SFR_P2,0);
-SBIT(P21,           SFR_P2,1); 
+SBIT(SW1,           SFR_P1,7); 
+SBIT(SW2,           SFR_P0,5); 
 
  
 //------------------------------------------------------------------------------------------------
