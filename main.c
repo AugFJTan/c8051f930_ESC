@@ -108,7 +108,7 @@ void main (void)
 #ifdef LCD    
 	
 
- 	sprintf (buffer,"CV = %x ",CEX0_Compare_Value);
+ 	sprintf (buffer,"CV = %u   ",CEX0_Compare_Value);
     LCD_ShowString(0,ROW1,buffer );
 
   
@@ -154,38 +154,7 @@ void main (void)
 
 void pwm_control(void)
 {
-	static unsigned int result, old_result;
-
-	/*old_result = CEX0_Compare_Value;
-	
-	CEX0_Compare_Value = (capture_period - 18900)/100;
-	
-	if (CEX0_Compare_Value >= old_result)
-	{
-		if (CEX0_Compare_Value - old_result > 100)
-			CEX0_Compare_Value = old_result;
-	}
-	else if (old_result > CEX0_Compare_Value)
-	{
-		if (old_result - CEX0_Compare_Value > 100)
-			CEX0_Compare_Value = old_result;
-	}
-
-	if (CEX0_Compare_Value < 10) CEX0_Compare_Value = 0;
-	if (CEX0_Compare_Value > 200) CEX0_Compare_Value = 0;
-
-	//if (SW1 == 0) CEX0_Compare_Value -= 100;      // Increase duty cycle
-
-	//if (SW2 == 0) CEX0_Compare_Value += 100;      // Decrease duty cycle
-
-	if (CEX0_Compare_Value == 0x0ffff)
-	{
-		PCA0CPM0 &= ~0x40;         // Clear ECOM0
-	}
-	else
-	{
-		PCA0CPM0 |= 0x40;          // Set ECOM0 if it is '0'
-	}*/
+	static unsigned int result = 0xffff, old_result;
 
 	old_result = result;
 
@@ -214,10 +183,17 @@ void pwm_control(void)
 		PCA0CPM0 |= 0x40;          // Set ECOM0 if it is '0'
 	}
 
-	sprintf (buffer,"rslt = %x ", result);
+#ifdef LCD  
+	sprintf (buffer,"rslt = %d ", result);
     LCD_ShowString(0,ROW5,buffer );
+#endif
 
-	CEX0_Compare_Value = result * 330;
+	if (result >= 193)
+		CEX0_Compare_Value = 0xffff;
+	else if (result == 0)
+		CEX0_Compare_Value = 0;
+	else
+		CEX0_Compare_Value = 0xffff - (195 - result) * (0xffff / 195);
 }
 
 void pwm_11bit(void)
