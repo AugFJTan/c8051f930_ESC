@@ -17,7 +17,7 @@
 //-----------------------------------------------------------------------------
 // Global CONSTANTS
 //-----------------------------------------------------------------------------
-//#define LCD
+#define LCD
 
 #define LED_ON           0
 #define LED_OFF          1
@@ -154,7 +154,8 @@ void main (void)
 
 void pwm_control(void)
 {
-	static unsigned int result = 0xffff, old_result;
+	static const int MAX_VALUE = 220;
+	static unsigned int result = 220, old_result;
 
 	old_result = result;
 
@@ -172,28 +173,28 @@ void pwm_control(void)
 	}
 
 	if (result < 10) result = 0;
-	if (result > 200) result = 0;
+	if (result > MAX_VALUE) result = 0;
 
-	if (result == 0x0ffff)
+	/*if (result == 0x0ffff)
 	{
 		PCA0CPM0 &= ~0x40;         // Clear ECOM0
 	}
 	else
 	{
 		PCA0CPM0 |= 0x40;          // Set ECOM0 if it is '0'
-	}
+	}*/
 
 #ifdef LCD  
 	sprintf (buffer,"rslt = %d ", result);
     LCD_ShowString(0,ROW5,buffer );
 #endif
 
-	if (result >= 193)
+	if (result >= MAX_VALUE-2)
 		CEX0_Compare_Value = 0xffff;
 	else if (result == 0)
 		CEX0_Compare_Value = 0;
 	else
-		CEX0_Compare_Value = 0xffff - (195 - result) * (0xffff / 195);
+		CEX0_Compare_Value = 0xffff - (MAX_VALUE - result) * (0xffff / MAX_VALUE);
 }
 
 void pwm_11bit(void)
