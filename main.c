@@ -17,14 +17,17 @@
 //-----------------------------------------------------------------------------
 // Global CONSTANTS
 //-----------------------------------------------------------------------------
-#define LCD
+//#define LCD
 
 #define LED_ON           0
 #define LED_OFF          1
 
 xdata  unsigned int delay_count;           // Used to implement a delay
 bit duty_direction = 0;             // 0 
-xdata unsigned int CEX0_Compare_Value;       // Holds current PCA compare value
+unsigned int CEX0_Compare_Value;       // Holds current PCA compare value
+
+unsigned int current_capture_value, previous_capture_value;
+unsigned int capture_period;
 
 xdata unsigned  char a = 0x01;
 xdata char buffer [33];
@@ -34,6 +37,7 @@ xdata unsigned  int j  = 1;
 xdata unsigned int  temp;
  
 char xdata buffer [33];
+
 
 
 //-----------------------------------------------------------------------------
@@ -65,6 +69,7 @@ INTERRUPT_PROTO (PCA0_ISR, INTERRUPT_PCA0);
 void main (void)
 {  
 	unsigned int i;
+	U32 temp;
 
    	PCA0MD &= ~0x40;                    // WDTE = 0 (clear watchdog timer
  
@@ -102,13 +107,33 @@ void main (void)
  
 #ifdef LCD    
 	
+
  	sprintf (buffer,"CV = %x ",CEX0_Compare_Value);
     LCD_ShowString(0,ROW1,buffer );
 
-	/*sprintf (buffer,"i = %d ",i);
+  
+ 	sprintf (buffer,"CCV = %x",current_capture_value);
     LCD_ShowString(0,ROW2,buffer );
 
+ 
+  	sprintf (buffer,"PCV = %x ", previous_capture_value);
+    LCD_ShowString(0,ROW3,buffer );
 
+ 	sprintf (buffer,"CP = %x ",capture_period);
+    LCD_ShowString(0,ROW4,buffer );
+ 	
+/*
+
+ 	//sprintf (buffer,"Throttle = %u ",capture_period * 4/100);
+	result = ((capture_period - 16900) / 100) - 10;
+
+	//if (result < 0)
+	//	result = 0;
+
+	sprintf (buffer,"Thr = %u ", 0xffff / 250 * result - 2600);
+    LCD_ShowString(0,ROW5,buffer );
+*/
+	/*
 	//sprintf (buffer,"P0 = %x ",P0 & 0x);
 	if (P0 & 0x20)
     	LCD_ShowString(0,ROW3, "P0.5 is on ");
@@ -129,9 +154,29 @@ void main (void)
 
 void pwm_control(void)
 {
-	if (SW1 == 0) CEX0_Compare_Value -= 100;      // Increase duty cycle
+	static unsigned int result, old_result;
 
-	if (SW2 == 0) CEX0_Compare_Value += 100;      // Decrease duty cycle
+	/*old_result = CEX0_Compare_Value;
+	
+	CEX0_Compare_Value = (capture_period - 18900)/100;
+	
+	if (CEX0_Compare_Value >= old_result)
+	{
+		if (CEX0_Compare_Value - old_result > 100)
+			CEX0_Compare_Value = old_result;
+	}
+	else if (old_result > CEX0_Compare_Value)
+	{
+		if (old_result - CEX0_Compare_Value > 100)
+			CEX0_Compare_Value = old_result;
+	}
+
+	if (CEX0_Compare_Value < 10) CEX0_Compare_Value = 0;
+	if (CEX0_Compare_Value > 200) CEX0_Compare_Value = 0;
+
+	//if (SW1 == 0) CEX0_Compare_Value -= 100;      // Increase duty cycle
+
+	//if (SW2 == 0) CEX0_Compare_Value += 100;      // Decrease duty cycle
 
 	if (CEX0_Compare_Value == 0x0ffff)
 	{
@@ -140,7 +185,39 @@ void pwm_control(void)
 	else
 	{
 		PCA0CPM0 |= 0x40;          // Set ECOM0 if it is '0'
+	}*/
+
+	old_result = result;
+
+	result = (capture_period - 18900)/100;
+	
+	if (result >= old_result)
+	{
+		if (result - old_result > 100)
+			result = old_result;
 	}
+	else if (old_result > result)
+	{
+		if (old_result - result > 100)
+			result = old_result;
+	}
+
+	if (result < 10) result = 0;
+	if (result > 200) result = 0;
+
+	if (result == 0x0ffff)
+	{
+		PCA0CPM0 &= ~0x40;         // Clear ECOM0
+	}
+	else
+	{
+		PCA0CPM0 |= 0x40;          // Set ECOM0 if it is '0'
+	}
+
+	sprintf (buffer,"rslt = %x ", result);
+    LCD_ShowString(0,ROW5,buffer );
+
+	CEX0_Compare_Value = result * 330;
 }
 
 void pwm_11bit(void)
@@ -312,19 +389,20 @@ void SYSCLK_Init (void)
 
 
 
-// P0.0
+// P0.0 Motor PWM output  - EX0 of PCA
 // P0.1
 // P0.2
 // P0.3
-// P0.4  Rcx Throttle input
+// P0.4  Rcx Throttle input - EX1 of PCA
 // P0.5  input switch 2
 
 // P0 -  
-// P2 -  
+// P2 - 00000011 
 // P1 - 01111101
 //      76543210
 
 // P2.0  - digital  push-pull     GREEN LED
+
 
 
   
@@ -341,9 +419,9 @@ void PORT_Init (void)
     P0MDOUT   = 0x11;
 
     P1MDOUT   |= 0x7D;                  // SPI1 LCD
- 	P2MDOUT   |= 0x01;                  // LED Port	
+ 	P2MDOUT   |= 0x03;                  // LED Port	
  
-    // P0SKIP    = 0x0f;
+    P0SKIP    = 0x0e;
 
     EA        = 0;                     // Disable interrupts before SFR paging
 
@@ -354,7 +432,7 @@ void PORT_Init (void)
 	
    	SFRPAGE   = LEGACY_PAGE;
 
-    XBR1      = 0x41;
+    XBR1      = 0x42;                 //connect out EX0 and EX1 out
     XBR2      = 0x40;
 
   
@@ -534,6 +612,14 @@ void PCA0_Init_PWM_16 (void)
    PCA0CPL0 = (CEX0_Compare_Value & 0x00FF);
    PCA0CPH0 = (CEX0_Compare_Value & 0xFF00)>>8;
 
+
+
+
+   PCA0CPM1 = 0x31;                    // Module 1 = Rising/falling Edge Capture Mode
+                                       // enable CCF flag.
+
+
+
    EIE1 |= 0x10;                       // Enable PCA interrupts
 
    // Start PCA counter
@@ -586,14 +672,11 @@ INTERRUPT(PCA0_ISR, INTERRUPT_PCA0)
 
 
 
-   static unsigned int current_capture_value, previous_capture_value;
-   static unsigned int capture_period;
-
 
 if (CCF0 ==1)             // PCA0 counter matches value, EXO is set to 1 
 {
-    CCF0 = 0;             // Clear module 0 interrupt flag.
-
+    CCF0 = 0;             // Clear module 0 interrupt lag.
+ 
     
     PCA0PWM   |= 0x80;           // ARSEL = 1 to access reload registers
     PCA0CPL0 = (CEX0_Compare_Value & 0x00FF);
@@ -611,13 +694,13 @@ if (CCF0 ==1)             // PCA0 counter matches value, EXO is set to 1
       CCF1 = 0;                        // Clear module 0 interrupt flag.
 
       // Store most recent capture value
-      current_capture_value = PCA0CP1;
-
+	  if (RCX_THROTTLE_IN == 1)  current_capture_value  = PCA0CP1;
+	  if (RCX_THROTTLE_IN == 0)  previous_capture_value = PCA0CP1;
       // Calculate capture period from last two values.
-      capture_period = current_capture_value - previous_capture_value;
+      capture_period = current_capture_value - previous_capture_value ;
 
       // Update previous capture value with most recent info.
-      previous_capture_value = current_capture_value;
+   //   previous_capture_value = current_capture_value;
 
    }
  

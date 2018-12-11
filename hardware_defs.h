@@ -79,7 +79,7 @@
 
 
 
-// P0.0
+// P0.0 brush motor PWM output
 // P0.1
 // P0.2
 // P0.3
@@ -94,10 +94,12 @@
 // P2.0  - digital  push-pull     GREEN LED
 
  
-SBIT(GREEN_LED,     SFR_P2,0);
-SBIT(LCD_BCK_LIGHT, SFR_P1,5);  
-SBIT(SW1,           SFR_P1,7); 
-SBIT(SW2,           SFR_P0,5); 
+SBIT(GREEN_LED,        SFR_P2,0);
+SBIT(LCD_BCK_LIGHT,    SFR_P1,5);  
+SBIT(SW1,              SFR_P1,7); 
+SBIT(PWM_MOTOR_Drive,  SFR_P0,0);
+SBIT(RCX_THROTTLE_IN,  SFR_P0,4);
+SBIT(SW2,              SFR_P0,5); 
 
  
 //------------------------------------------------------------------------------------------------

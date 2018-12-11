@@ -57,6 +57,8 @@ INTERRUPT(Timer2_ISR, INTERRUPT_TIMER2)
    milliseconds ++;
    jiffies ++;
  
+
+   P2 ^=0x02;
    if (milliseconds == 1000)
    { 	
    	   milliseconds = 0;
