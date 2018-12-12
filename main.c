@@ -97,6 +97,8 @@ void main (void)
  
 #endif
 
+ 
+
    while (1)
    {    i++;
 
@@ -112,14 +114,14 @@ void main (void)
     LCD_ShowString(0,ROW1,buffer );
 
   
- 	sprintf (buffer,"CCV = %x",current_capture_value);
+ 	sprintf (buffer,"CCV = %u",current_capture_value);
     LCD_ShowString(0,ROW2,buffer );
 
  
-  	sprintf (buffer,"PCV = %x ", previous_capture_value);
+  	sprintf (buffer,"PCV = %u ", previous_capture_value);
     LCD_ShowString(0,ROW3,buffer );
 
- 	sprintf (buffer,"CP = %x ",capture_period);
+ 	sprintf (buffer,"CP = %u ",capture_period);
     LCD_ShowString(0,ROW4,buffer );
  	
 /*
@@ -155,7 +157,7 @@ void main (void)
 void pwm_control(void)
 {
 	static const int MAX_VALUE = 220;
-	static unsigned int result = 220, old_result;
+	static unsigned int result = 0, old_result;
 
 	old_result = result;
 
@@ -195,6 +197,15 @@ void pwm_control(void)
 		CEX0_Compare_Value = 0;
 	else
 		CEX0_Compare_Value = 0xffff - (MAX_VALUE - result) * (0xffff / MAX_VALUE);
+
+	if (CEX0_Compare_Value == 0x0ffff)
+	{
+		PCA0CPM0 &= ~0x40;         // Clear ECOM0
+	}
+	else
+	{
+		PCA0CPM0 |= 0x40;          // Set ECOM0 if it is '0'
+	}
 }
 
 void pwm_11bit(void)
@@ -393,7 +404,7 @@ void SYSCLK_Init (void)
 //-----------------------------------------------------------------------------
 void PORT_Init (void)
 {
-    P0MDOUT   = 0x11;
+    P0MDOUT   = 0x00;
 
     P1MDOUT   |= 0x7D;                  // SPI1 LCD
  	P2MDOUT   |= 0x03;                  // LED Port	
@@ -405,11 +416,12 @@ void PORT_Init (void)
 
    	SFRPAGE   = CONFIG_PAGE;
    	P1DRV     |= 0x7d;                   // LCD- High-Current mode
-
+    P0DRV     |= 0x01;
 	
    	SFRPAGE   = LEGACY_PAGE;
 
     XBR1      = 0x42;                 //connect out EX0 and EX1 out
+ 
     XBR2      = 0x40;
 
   
@@ -583,8 +595,10 @@ void PCA0_Init_PWM_16 (void)
                                        // enable Module 0 Match and Interrupt
                                        // Flags
 
+
    // Value at PWM idle
-   CEX0_Compare_Value = 0xffff;
+   //CEX0_Compare_Value = 0xffff;
+   CEX0_Compare_Value = 0;
 
    PCA0CPL0 = (CEX0_Compare_Value & 0x00FF);
    PCA0CPH0 = (CEX0_Compare_Value & 0xFF00)>>8;
