@@ -17,7 +17,7 @@
 //-----------------------------------------------------------------------------
 // Global CONSTANTS
 //-----------------------------------------------------------------------------
-#define LCD
+//#define LCD
 
 #define LED_ON           0
 #define LED_OFF          1
@@ -80,15 +80,14 @@ void main (void)
  
    Timer2_Init (24500);                // Initialize timer 2 to interrupt every millisecond
 
-    SPI_Init();
+    
 //    PCA0_Init ();                       // Initialize PCA0 
     PCA0_Init_PWM_16();
  //    PCA0_Init_PWM_11 ();
-   EA = 1;  // Enable global interrupts
-
+   
  
 #ifdef LCD
-
+	SPI_Init();
 
     Lcd_Init();   
     LCD_Clear(BLACK);
@@ -97,7 +96,7 @@ void main (void)
  
 #endif
 
- 
+   EA = 1;  // Enable global interrupts
 
    while (1)
    {    i++;
