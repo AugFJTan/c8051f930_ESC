@@ -17,7 +17,7 @@
 //-----------------------------------------------------------------------------
 // Global CONSTANTS
 //-----------------------------------------------------------------------------
-//#define LCD
+#define LCD
 
 #define LED_ON           0
 #define LED_OFF          1
@@ -80,14 +80,15 @@ void main (void)
  
    Timer2_Init (24500);                // Initialize timer 2 to interrupt every millisecond
 
-    
+    SPI_Init();
 //    PCA0_Init ();                       // Initialize PCA0 
     PCA0_Init_PWM_16();
  //    PCA0_Init_PWM_11 ();
-   
+   EA = 1;  // Enable global interrupts
+
  
 #ifdef LCD
-	SPI_Init();
+
 
     Lcd_Init();   
     LCD_Clear(BLACK);
@@ -96,7 +97,7 @@ void main (void)
  
 #endif
 
-   EA = 1;  // Enable global interrupts
+ 
 
    while (1)
    {    i++;
@@ -659,41 +660,26 @@ void PCA0_Init_PWM_11 (void)
 //-----------------------------------------------------------------------------
 INTERRUPT(PCA0_ISR, INTERRUPT_PCA0)
 {
-
-
-
-
-if (CCF0 ==1)             // PCA0 counter matches value, EXO is set to 1 
-{
-    CCF0 = 0;             // Clear module 0 interrupt lag.
- 
-    
-    PCA0PWM   |= 0x80;           // ARSEL = 1 to access reload registers
-    PCA0CPL0 = (CEX0_Compare_Value & 0x00FF);
-    PCA0CPH0 = (CEX0_Compare_Value & 0xFF00)>>8;
- 
-    PCA0PWM   &= ~0x80;          // ARSEL = 0 
-
-
-}
-
-
-
-   if (CCF1)                           // If Module 0 caused the interrupt
+   if (CCF0)                       // PCA0 counter matches value, EXO is set to 1 
    {
-      CCF1 = 0;                        // Clear module 0 interrupt flag.
+      CCF0 = 0;                    // Clear module 0 interrupt lag.
+    
+      PCA0PWM   |= 0x80;           // ARSEL = 1 to access reload registers
+      PCA0CPL0 = (CEX0_Compare_Value & 0x00FF);
+      PCA0CPH0 = (CEX0_Compare_Value & 0xFF00)>>8;
+ 
+      PCA0PWM   &= ~0x80;          // ARSEL = 0 
+   }
+   else if (CCF1)                  // If Module 0 caused the interrupt
+   {
+      CCF1 = 0;                    // Clear module 0 interrupt flag.
 
       // Store most recent capture value
 	  if (RCX_THROTTLE_IN == 1)  current_capture_value  = PCA0CP1;
 	  if (RCX_THROTTLE_IN == 0)  previous_capture_value = PCA0CP1;
       // Calculate capture period from last two values.
       capture_period = current_capture_value - previous_capture_value ;
-
-      // Update previous capture value with most recent info.
-   //   previous_capture_value = current_capture_value;
-
    }
- 
 }
 
 //-----------------------------------------------------------------------------
