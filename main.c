@@ -174,17 +174,8 @@ void pwm_control(void)
 			result = old_result;
 	}
 
-	if (result < 10) result = 0;
+	if (result < 30) result = 0;
 	if (result > MAX_VALUE) result = 0;
-
-	/*if (result == 0x0ffff)
-	{
-		PCA0CPM0 &= ~0x40;         // Clear ECOM0
-	}
-	else
-	{
-		PCA0CPM0 |= 0x40;          // Set ECOM0 if it is '0'
-	}*/
 
 #ifdef LCD  
 	sprintf (buffer,"rslt = %d ", result);
@@ -192,13 +183,13 @@ void pwm_control(void)
 #endif
 
 	if (result >= MAX_VALUE-2)
-		CEX0_Compare_Value = 0xffff;
+		CEX0_Compare_Value = 0xffff - 100;
 	else if (result == 0)
 		CEX0_Compare_Value = 0;
 	else
-		CEX0_Compare_Value = 0xffff - (MAX_VALUE - result) * (0xffff / MAX_VALUE);
+		CEX0_Compare_Value = (0xffff - 100) - (MAX_VALUE - result) * ((0xffff - 100) / MAX_VALUE);
 
-	if (CEX0_Compare_Value == 0x0ffff)
+	if (CEX0_Compare_Value == (0x0ffff - 100))
 	{
 		PCA0CPM0 &= ~0x40;         // Clear ECOM0
 	}
@@ -670,9 +661,9 @@ INTERRUPT(PCA0_ISR, INTERRUPT_PCA0)
  
       PCA0PWM   &= ~0x80;          // ARSEL = 0 
    }
-   else if (CCF1)                  // If Module 0 caused the interrupt
+   else if (CCF1)                  // If Module 1 caused the interrupt
    {
-      CCF1 = 0;                    // Clear module 0 interrupt flag.
+      CCF1 = 0;                    // Clear module 1 interrupt flag.
 
       // Store most recent capture value
 	  if (RCX_THROTTLE_IN == 1)  current_capture_value  = PCA0CP1;
